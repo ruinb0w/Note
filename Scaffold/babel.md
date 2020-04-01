@@ -1,0 +1,1 @@
+JavaScript转译器,将使用了ES6和ES7语言特性的JavaScript代码转换成只使用广泛支持的ES5特性的等价代码。
