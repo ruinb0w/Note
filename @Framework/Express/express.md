@@ -1,34 +1,29 @@
-## quick start
+## 简介
 
-创建express实例
+### 基本使用
 
 ```js
 const express = require('express');
-let app = express();
-```
+const app = express();
 
-## 路由
-
-### 简单路由
-
-```js
-app.METHOD(PATH, HANDLER)
-```
-
-### 中间件
-
-```js
-// 默认从上到下进行匹配, 匹配后执行并结束, 可以在参数中加入next来进一步进行处理
-app.get('/request', (req,res,next)=>{
-    res.name='xiaobai';
-    next();
-});
-app.get('/request', (req,res)=>{
-    app.send(res.name)
+app.get("/", (req, res)=>{
+    res.send("hello express");
 })
+
+app.listen(3000);
 ```
 
-### app.use
+app.get/use/post语法
+
+`app.use([路径][, 中间件], 处理函数)`
+
+* 路径: 没有就是根路径
+* 中间件: 没有就不用
+* 处理函数: 
+
+### app
+
+#### app.use
 
 根据父路由来进行匹配, 没有则是所有
 
@@ -44,13 +39,70 @@ app.use("/request", (req,res)=>{
 })
 ```
 
-### app.status
+#### app.status
 
 ```js
 // status可以指定状态码, 并且可以链式调用
 app.use((req,res)=>{
     app.status(404).send("当前访问的页面不存在");
 })
+```
+
+## 路由
+
+### 简单路由
+
+```js
+app.METHOD(PATH, HANDLER)
+```
+
+### 动态路由
+
+```js
+app.get("/user/:id", (req, res)=>{
+    app.send(req.params.id);
+})
+
+// 请求 /user/123
+// 返回 123
+```
+
+### 静态资源访问
+
+```js
+app.use(express.static('静态资源路径'))
+```
+
+### 路由模块化
+
+1. 编写并导出路由
+
+```js
+// routes/user.js
+const express = require('express');
+const router = express.Router();
+router.get('/', (req, res)=>{
+	res.send('用户首页')
+});
+router.get('/login', (req, res)=>{
+	res.send('登录页')
+});
+router.get('/about', (req, res)=>{
+	res.send('用户信息')
+});
+
+module.exports = router;
+```
+
+2. 引入并使用路由
+
+```js
+const express = require("express");
+const app = express();
+const user = require("routes/user.js");
+
+app.use("/user", user);
+// 当用户访问 域名/user/about就会得到返回值"用户信息"
 ```
 
 ### 错误处理中间件
@@ -116,8 +168,6 @@ app.use('/home', home)
 
 get请求只需要用`req.query`
 
-post请求需要使用body-parser模块
-
 ```js
 const bodyParser = require('body-parser');
 // 使用bodyParser拦截并处理, 他会自动调用next方法
@@ -137,34 +187,28 @@ app.get('/index/:id', (req,res)=>{
 })
 ```
 
-### 静态资源访问
-
-```js
-app.use(express.static('静态资源路径'))
-```
-
 ### 使用模板引擎
 
-![image-20200115110654105](image-20200115110654105.png)
+模板
 
-不同模板的公共数据
+> 模板要放在views文件夹下
 
-```js
-app.locals.users= [{
-    name: 'xiaobai',
-    age: 20
-},{
-    name: 'xiaolv',
-    age: 99
-}]
+```ejs
+<h1>
+    <%=msg%>
+</h1>
 ```
 
-```html
-<ul>
-    {{each users}}
-    <li>{{$value.name}},{{$value.age}}</li>
-    {{/each}}
-</ul>
+路由
+
+```js
+// 配置模板引擎
+app.set("view engine", "ejs");
+app.get("/", (req, res)=>{
+    res.render("index", {
+        msg: "message"
+    })
+})
 ```
 
 ### 链式路由
@@ -182,30 +226,6 @@ app.route('/book')
   .put(function (req, res) {
     res.send('Update the book')
   })
-```
-
-### 中间件路由
-
-```javascript
-const express = require('express')
-const router = express.Router()
-// 路由规则
-router.get('/', function (req, res) {
-  res.send('Birds home page')
-});
-router.get('/about', function (req, res) {
-  res.send('About birds')
-});
-// 可以将router作为模块
-module.exports = router;
-// 也可以直接使用
-// app.use("/birds", router);
-```
-
-```javascript
-// 应用router中间件模块
-var birds = require('./birds');
-app.use('/birds', birds);
 ```
 
 ## 捕获请求
@@ -256,48 +276,109 @@ app.post("/", function(){
 
 ## 中间件
 
-通过`app.use(中间件)`的行式
+> 匹配路由之前或匹配路由之后进行的一些列操作
 
-### static中间件
-
-指定目录为静态文件目录, 可以直接通过地址访问到其中的文件
+### 中间件
 
 ```js
-// 将pictures指定为静态文件目录
-app.use(express.static('pictures'));
-// 可以直接通过 http://localhost:3000/flower.jpg 来获取pictures下的flower.jpg, 上面等价于 
-app.use("/", express.static("picturezjn9s"))
-//即use默认路由地址为根, 也可以自定
-app.use("/giveme", express.static("pictures"))
-// 这里就需要 http://localhost:3000/giveme/flower.jpg 来获取pictures下的flower.jpg
+// 默认从上到下进行匹配, 匹配后执行并结束, 可以在参数中加入next来进一步进行处理
+app.get('/request', (req,res,next)=>{
+    res.name='xiaobai';
+    next();
+});
+app.get('/request', (req,res)=>{
+    app.send(res.name)
+})
 ```
 
-### 应用级中间件
+express中间件通过next()来实现, 例如
 
 ```js
 const express = require("express");
 const app = express();
-app.use(); // 这就是应用级中间件
+app.use((req, res, next)=>{
+    // 所有路由都会走到这个中间件
+    next();
+    //调用next()到下一个路由, 不然路由就会在这个中间件终止
+}); 
+```
+
+上面的例子执行完后, 通过next()到下一个路由. 除了use也可以用post, get等, 只不过use既匹配post也匹配get
+
+> 中间件通常用于实现业务逻辑, 并不向客户端发送响应
+
+### 应用级中间件
+
+> 放在路由前, 用于管理权限等
+
+```js
+const express = require("express");
+const app = express();
+app.use((req, res, next)=>{
+    // 所有路由都会走到这个中间件
+    next();
+    //调用next()到下一个中间件, 不然路由就会在这个中间件终止
+}); 
 ```
 
 ### 路由级中间件
 
+> 默认路由匹配后执行完相关逻辑路由就会自动终止, 可以通过next()方法让路由继续尝试匹配规则
+
 ```js
 const express = require("express");
-const route = express.Router();
-route.use(); // 这就是路由级中间件
+const app = express();
+app.get("/login/add", (req,res,next)=>{
+    console.log(req);
+    next();
+})
+app.get("/login/:id", (req,res)=>{
+    console.log(req);
+})
 ```
+
+### 错误处理中间件
+
+> 放在路由后, 用于处理错误, 例如没有匹配的路由等
+
+示例
+
+```js
+app.use((req,res)=>{
+    res.status(404).send("404");
+})
+```
+
+### 内置中间件
+
+> express内置的中间件, 例如express.static
+
+示例
+
+```js
+app.use(express.static("public"));	
+```
+
+### 第三方中间件
+
+### next
+
+| Method          | description                                         |
+| --------------- | --------------------------------------------------- |
+| `next()`        | 执行**同一route**下的下一个中间件, 会构成中间件环   |
+| `next('route')` | 执行**下一个同路径route**的中间件, 不会构成中间件环 |
 
 ## 处理函数(中间件)的参数
 
 ### request
 
-| Parameter       | description                          |
-| --------------- | ------------------------------------ |
-| req.method      | request method                       |
-| req.originalUrl | the original URL which was requested |
-| req.query       | get请求参数对象                      |
-| req.body        | post请求参数                         |
+| Parameter       | description                                                  |
+| --------------- | ------------------------------------------------------------ |
+| req.method      | request method                                               |
+| req.originalUrl | the original URL which was requested                         |
+| req.query       | get请求参数对象, 如请求`/home?name=xiaobai&age=10`           |
+| req.body        | post请求参数                                                 |
+| req.params      | 动态路由参数, 如请求 `/home/:id` params就有一个id属性与请求对应 |
 
 ### response 
 
@@ -313,16 +394,27 @@ route.use(); // 这就是路由级中间件
 | [res.sendFile()](https://expressjs.com/en/4x/api.html#res.sendFile) | *     | Send a file as an octet stream.                              |
 | [res.sendStatus()](https://expressjs.com/en/4x/api.html#res.sendStatus) |       | Set the response status code and send its string representation as the response body. |
 
-### next
-
-| Method          | description                                         |
-| --------------- | --------------------------------------------------- |
-| `next()`        | 执行**同一route**下的下一个中间件, 会构成中间件环   |
-| `next('route')` | 执行**下一个同路径route**的中间件, 不会构成中间件环 |
-
 ## 模板引擎
 
 使用`app.set("view engine", "pug");`来指定模板引擎
+
+## express-generator
+
+### 说明
+
+### 使用
+
+安装:
+
+```
+yarn global add express-generator
+```
+
+使用: 
+
+```
+express [选项] [参数] 项目名
+```
 
 ## Question
 
@@ -335,4 +427,3 @@ Route path: /user/:userId(\d+)
 Request URL: http://localhost:3000/user/42
 req.params: {"userId": "42"}
 ```
-
