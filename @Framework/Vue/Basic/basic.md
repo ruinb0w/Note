@@ -1,26 +1,18 @@
-## vue组件的基本结构
+## vue实例
 
-```vue
-<template>
-  <div @click="changeMsg">{{msg}}</div>
-</template>
+### 实例属性
 
-<script>
-export default {
-  name: 'App',
-  data(){
-      return {
-          msg: 'hello world';
-      }
-  },
-  methods: {
-      changeMsg(){
-          this.msg = 'hello vue';
-      }
-  }
-}
-</script>
-```
+示例属性在实例对象中通过this访问
+
+| 属性     | 描述                                                        |
+| -------- | ----------------------------------------------------------- |
+| $data    | vue组件实例化后的data选项                                   |
+| $props   | vue组件实例化后的props选项                                  |
+| $el      | 组件挂载的元素                                              |
+| $options | 未经实例化组件的所有选项, 通常用于组件的自定义选项          |
+| $parent  | 获取父实例, 以此可以访问到父实例的属性                      |
+| $root    | 获取根实例                                                  |
+| $slot    | 用于渲染函数设置插槽, 例如 `h('div', this.$slot.default())` |
 
 ## vue指令
 
@@ -89,7 +81,9 @@ export default {
 
 ### v-model
 
-#### 绑定input
+#### 绑定
+
+**绑定input**
 
 ```vue
 <template>
@@ -107,7 +101,7 @@ export default {
 </script>
 ```
 
-#### 绑定radio
+**绑定radio**
 
 ```vue
 <template>
@@ -130,7 +124,7 @@ export default {
 </script>
 ```
 
-#### 绑定select
+**绑定select**
 
 ```vue
 <template>
@@ -151,7 +145,7 @@ export default {
 </script>
 ```
 
-#### 绑定checkbox
+**绑定checkbox**
 
 ```vue
 <template>
@@ -172,6 +166,160 @@ export default {
             }
         }
 	}
+</script>
+```
+
+#### 修饰符
+
+| 修饰符    | 说明                                                        |
+| --------- | ----------------------------------------------------------- |
+| `.number` | 自动转为数字                                                |
+| `.trim`   | 自动去除前后空格                                            |
+| `.lazy`   | 默认在input事件同步数据, 加上lazy后则会在change事件同步数据 |
+
+#### 组件双向数据绑定
+
+```vue
+<!--下面是双向数据绑定的写法, 其实际上是一个语法糖-->
+<input v-model="content" />
+
+<!--对于input type=text 其实现方式如下-->
+<input :value="content" @input="content = $event.target.value" />
+
+<!--对于组件其实现方式如下, 也就是说它会绑定一个prop名字为 model-value, 子组件可以通过触发 update:model-value 来向父组件传值-->
+<custom-input
+  :model-value="content"
+  @update:model-value="content = $event"
+></custom-input>
+```
+
+下面是一个简单的示例
+
+```vue
+<div id="app">
+  father: {{content}} ----- son: <son v-model="content"></son>
+</div>
+<script>
+  const app = Vue.createApp({
+    data(){
+      return {
+        content: 'aaa'
+      }
+    },
+    methods: {
+      handleInputFromSon(e){
+        console.log('handleInputFromSon', e);
+      }
+    },
+    components: {
+      son: {
+        template: `<input @input="handleInput" :value="modelValue"/>`,
+        props: ['modelValue'],
+        emits: ['update:modelValue'],
+        methods: {
+          handleInput(e){
+            console.log("handle son input")
+            this.$emit('update:modelValue', e.target.value);
+          }
+        }
+      }
+    }
+  });
+  const mount_point = app.mount("#app");
+</script>
+```
+
+#### 自定义属性名
+
+`v-model` 可以自定义属性名, 用在父子组件双向数据绑定, 当然你也可以指定多个自定义的双向数据绑定. 通过指定参数来自定义属性名, 例如指定 `v-model:title="title"` 在子组件的props就能拿到 `title` , 更新所需触发的事件也改为 `update:title` , 而不是默认的 `modelValue` 和 `update:modelValue`
+
+下面的例子中当子组件点击click me后, 父组件的fathersTitle将变为"hello world"
+
+```vue
+<!--父组件-->
+<template>
+	<son v-model:fathers_age="fathers_age" v-model:sons_name="sons_name">fathers title is: {{fathersTitle}}</son>
+</template>
+<script>
+    export default{
+        data(){
+            return {
+                fathers_age: 10,
+                sons_name: "nick"
+            }
+        },
+        compoents: ['son']
+    }
+</script>
+```
+
+```vue
+<!--子组件-->
+<template>
+	<div @click="changeFathersAge">change fathers name</div>
+	<div @click="changeSonsName">change sons name</div>
+</template>
+<script>
+    export default{
+        props: {
+            fathers_age: Number,
+            sons_name: String
+        }
+        emits: ['update:fathers_age', 'update:sons_name'],
+        methods:{
+            changeFathersAge(){
+                this.$emit("update:fathers_age", this.fathers_age + 1);
+            },
+            changeSonsName(){
+                this.$emit("update:sons_name", 'jack');
+            }
+        }
+    }
+</script>
+```
+
+#### 自定义修饰符
+
+在父组件中使用了修饰符后, 子组件可以在props中通过 `modelModifiers.修饰符` 访问到该修饰符, 其值为true.
+
+如下例中父组件使用了自定义的 `capitalize` 修饰符, 在子组件中给props选项添加 `modelModifiers` ,我们就可以通过`this.modelModifiers.capitalize`  是否为真来判断父组件的v-model是否用了修饰符, 或用了哪一个.
+
+```vue
+<!--父组件-->
+<template>
+	<son v-model.capitalize:title="title">fathers title is: {{fathersTitle}}</son>
+</template>
+<script>
+    export default{
+        data(){
+            return {
+                title: 'hello world'
+            }
+        },
+        compoents: ['son']
+    }
+</script>
+```
+
+```vue
+<!--子组件-->
+<template>
+	<div @click="capitalizeTitle">capitalize title</div>
+</template>
+<script>
+    export default{
+        props: ['modelValue', 'modelModifiers'],
+        emits: ['update:modelValue']
+        methods:{
+            capitalizeTitle(){
+                let value = this.title;
+                if(this.modelModifiers.capitalize){
+                    value = value.charAt(0).toUpperCase() + value.slice(1)
+                }
+                this.$emit("update:moduleValue", value);
+            }
+        }
+    }
 </script>
 ```
 
@@ -248,6 +396,50 @@ let vm = new Vue({
 </script>
 ```
 
+### 指令属性
+
+`v-bind` 和 `v-on` 指令可以添加属性, 例如
+
+```vue
+<template>
+	<div v-bind:data="mydata">test</div>
+</template>
+<script>
+export default{
+    data(){
+        return{
+            mydata: 'hello'
+        }
+    }
+}
+</script>
+
+<!--我们就得到了-->
+<div data="hello">test</div>
+```
+
+#### 动态指令属性
+
+```vue
+<template>
+	<img v-bind:[arg]="{{img_src}}"/>
+	<!--use square brakets to wrap dynamic directives-->
+</template>
+<script>
+export default{
+    data(){
+        return{
+            img_arg: 'src',
+            img_src: "123.png"
+        }
+    }
+}
+</script>
+
+<!--then we got-->
+<img v-bind:src="123.png"/>
+```
+
 ## 事件
 
 ### 绑定事件
@@ -302,13 +494,14 @@ let vm = new Vue({
 
 ### 事件修饰符
 
-| 修饰符        | 说明                                             |
-| ------------- | ------------------------------------------------ |
-| @事件.stop    | 阻止事件冒泡                                     |
-| @事件.prevent | 阻止默认事件                                     |
-| @事件.capture | 在捕获阶段触发事件(默认是冒泡)                   |
-| @事件.self    | 只当在 event.target 是当前元素自身时触发处理函数 |
-| @事件.onece   | 只触发一次事件处理函数                           |
+| 修饰符        | 说明                                                         |
+| ------------- | ------------------------------------------------------------ |
+| @事件.stop    | 阻止事件冒泡                                                 |
+| @事件.prevent | 阻止默认事件                                                 |
+| @事件.capture | 在捕获阶段触发事件(默认是冒泡)                               |
+| @事件.self    | 只当在 event.target 是当前元素自身时触发处理函数             |
+| @事件.onece   | 只触发一次事件处理函数                                       |
+| @事件.passive | 告诉浏览器这个事件是消极的, 即阻止 event.preventDefault() 如此可以优化性能. |
 
 > 事件修饰符可以串联
 
@@ -316,7 +509,32 @@ let vm = new Vue({
 
 说明: 按键修饰符用于按键事件, 按键事件有 `keyup`, `keydown`等
 
-按键修饰符格式: `@按键事件.修饰符`, 例如 `@keyup.enter`
+语法: `@按键事件.修饰符`, 例如 `@keyup.enter`
+
+vue提供的按键修饰符别名:
+
+- `.enter`
+- `.tab`
+- `.delete` (captures both "Delete" and "Backspace" keys)
+- `.esc`
+- `.space`
+- `.up`
+- `.down`
+- `.left`
+- `.right`
+
+系统按键修饰符(需要结合其它按键或者鼠标点击)
+
+- `.ctrl`
+- `.alt`
+- `.shift`
+- `.meta`
+
+鼠标按键修饰
+
+- `.left`
+- `.right`
+- `.middle`
 
 自定义按键修饰符别名
 
@@ -357,6 +575,12 @@ Vue.config.keyCodes.f1 = 112;
 
 
 > 数组, 三元表达式和对象可以互相嵌套使用, 从而绑定多个值
+
+你也可以设置默认的class, 它将一直存在.
+
+```vue
+<div class="default" :class="{red: is_red}">hello world</div>
+```
 
 ### 内联样式
 
@@ -505,11 +729,29 @@ fullName: <input :value="fullName"/>
 </script>
 ```
 
+计算属性默认只是一个getter, 但你也可以通过把方法改为对象来给计算属性加上setter
+
+```js
+computed: {
+    fullName: {
+        get(){
+            return this.first_name + " " + this.last_name;
+        },
+        set(newVal){
+            const [first_name, last_name] = newVal.split(" ");
+            this.first_name = first_name;
+            this.last_name = last_name;
+        }
+    }
+}
+```
+
+
+
 ## 生命周期
 
-<details>
-    <summary>生命周期图</summary>
-    <image src="lifecycle.png" style="zoom:50%"></image>
+<img src="../../../../../Downloads/lifecycle.svg" alt="lifecycle" style="zoom:80%;" />
+
 
 ### 创建期
 
@@ -570,38 +812,134 @@ destroyed: 实例销毁后
 </script>
 ```
 
-## vue动画
+## vue过场动画
+
+通过 `transition` 包裹来让元素在显示和隐藏时执行过场动画
+
+![image-20210220213649266](https://i.loli.net/2021/02/20/r2WvSbJxVzI6BM7.png)
+
+其有四个关键帧(v-enter-from, v-enter-to, v-leave-from, v-leave-to) 和两个过程(v-enter-active, v-leave-active).
+
+**关键帧** 用于指定动画的开始和结束, 如果没有结束就以元素的样式作为结束. 
+
+> 需要知道关键帧只是动画, 并不会实际影响元素的样式, 即在动画结束后, 元素会回到它本来的样式.
+
+**过程** 指定动画的相关参数, 如指定运动的属性, 时间, 运动模式. 详见 CSS [transition](https://developer.mozilla.org/en-US/docs/Web/CSS/transition) 属性
 
 ### 基础使用方法
 
-```html
+```vue
+<template>
+	<transition>
+        <transition name="fade">
+        	<div class="hello" v-show="msg && show"> hello world </div>
+      	</transition>
+      	<div class="button" @click="clickButton">
+        	hide/show
+      	</div>
+    </transition>
+</template>
 <style>
-    /*设置进入结束和离开结束时的样式*/
-    .v-enter,
-    .v-leave-to {
-        opacity: 0;
-        transform: translateX(100px);
-    }
-    
-    /*设置动画执行过程*/
-    .v-enter-active,
-    .v-leave-active {
-        transition: all 0.4s ease;
-    }
-    
-    /*设置元素运动, 同时需要设置.v-leave-active*/
-    .move {
-        transition: all 0.4s ease;
-    }
-    .v-leave-active {
+    .hello{
         position: absolute;
-    }
+        top: 0;
+        transform: translateX(50px); 
+        color: red;
+      }
+
+      .fade-enter-active,
+      .fade-leave-active {
+        transition: all 0.5s ease;
+      }
+      
+      .fade-enter-from,
+      .fade-leave-to {
+        opacity: 0;
+        transform: translateX(0px); 
+        color: green;
+      }
+
+      .button{
+        border: 1px solid;
+        margin-top: 100px;
+      }
 </style>
-<transition>
-    <h3>使用transition包裹要使用动画的元素</h3>
+```
+
+### 动画模式
+
+默认情况下, 在两个相互替代的组件进行替换动画时, 两个元素的动画是同时发生的, 这样会造成位移的情况. 而mode可以指定先执行哪个元素的动画
+
+> mode="out-in" 表示先执行退出动画, 再执行进入动画(一般都用这个)
+>
+> mode="in-out" 表示先执行进入动画, 再执行退出动画
+
+```vue
+<transition mode="out-in">
+    <div class="button" v-if="stat">on</div>
+    <div class="button" v-else>off</div>
+</transition>
+```
+
+### 动画钩子
+
+```vue
+<transition
+  @before-enter="beforeEnter"
+  @enter="enter"
+  @after-enter="afterEnter"
+  @enter-cancelled="enterCancelled"
+  @before-leave="beforeLeave"
+  @leave="leave"
+  @after-leave="afterLeave"
+  @leave-cancelled="leaveCancelled"
+>
+  <!-- ... -->
 </transition>
 <script>
-    
+// ...
+methods: {
+  // --------
+  // ENTERING
+  // --------
+
+  beforeEnter(el) {
+    // ...
+  },
+  // the done callback is optional when
+  // used in combination with CSS
+  enter(el, done) {
+    // ...
+    done()
+  },
+  afterEnter(el) {
+    // ...
+  },
+  enterCancelled(el) {
+    // ...
+  },
+
+  // --------
+  // LEAVING
+  // --------
+
+  beforeLeave(el) {
+    // ...
+  },
+  // the done callback is optional when
+  // used in combination with CSS
+  leave(el, done) {
+    // ...
+    done()
+  },
+  afterLeave(el) {
+    // ...
+  },
+  // leaveCancelled only available with v-show
+  leaveCancelled(el) {
+    // ...
+  }
+}
 </script>
 ```
 
@@ -664,16 +1002,28 @@ duration 指定动画时长
 
 ### 列表动画
 
-appear 实现入场效果
+通过 `<transition-group></transition-group>` 来包裹需要动画的列表
 
-tag 用于指定将transition-group渲染为哪种标签
+需要注意
 
-```html
-<transition-group appear tag="ul">
-    <li v-for="item in list" :key="item.id">
-    	用transition-group包裹v-for渲染的内容
-    </li>
-</transition-group>
+- 默认情况下 `<transition-group>` 标签不会被渲染出来, 如果要渲染包裹列表的标签则需要用 `tag` 属性指定, 例如指定包裹标签为ul的语法为 `tag="ul"`
+- 动画模式不能用在列表
+- 列表中的元素必须要用唯一的 `key` , 不能使用index作为key.
+- css动画会被用在列表中的元素, 而不是整个列表.
+- transition-group同transition一样, 也可以通过name指定进出动画
+
+#### v-move
+
+对于列表元素, 我们可以用 `.v-move` 类样式来指定列表元素移动的动画. 这样列表中的某个元素删除时, 下面的元素会通过动画上移而不是直接跳上来
+
+```css
+.v-move{
+	transition: transform .8s ease .8s;
+}
+/* v-move 可以指定作用的transition元素. 例如name="list" 样式就为: */
+.list-move{
+    transition: transform .8s ease .8s;
+}
 ```
 
 ### 组件切换/路由
@@ -684,819 +1034,7 @@ tag 用于指定将transition-group渲染为哪种标签
 </transition>
 ```
 
-## 自定义组件
-
-### 基本使用
-
-全局组件
-
-```html
-<!--使用组件-->
-<div id="app">
-    <my-com1/>
-    <my-com2/>
-    <my-com3/>
-</div>
-
-<template id="tmp1">
-    <div>
-        <h3>这是com3组件</h3>
-    </div>
-</template>
-
-<script>
-    let vm = new Vue({
-        el: "#app"
-    })	
-    // 1.------- 先创建后注册 ------
-    // 创建全局组件
-    let com1 = Vue.extend({
-		template: "<h3>这是com1组件</h3>"
-	})
-    // 注册组件
-    Vue.component('myCom1', com1);
-    
-    // 2.----- 直接通过component来创建并注册 -----
-    Vue.component('myCom2', {
-        template: "<h3>这是com2组件</h3>"
-    })
-    
-    // 3.---- 引用定义在html的模板 -----
-    Vue.component('myCom3', {
-        template: '#tmp1'
-    })
-</script>
-```
-
-> 如果在注册时使用驼峰命名, 在使用是要用-来分隔
->
-> template只能有一个根标签
->
-> 引用定义在html的template应当写在#app外, 而使用组件则需要在#app内使用
-
-私有组件
-
-```html
-<div id="app">
-    <com4/>
-</div>
-
-<script>
-    let vm = new Vue({
-        el: "#app",
-        components: {
-            com4: {
-                template: "<h3>这是com4</h3>"
-            }
-        }
-    })
-</script>
-```
-
-### 组件切换
-
-组件切换可以通过结合使用`v-if`, `v-else`, `v-else-if`或者通过`component`标签,例如:
-
-```html
-<component :is="组件名"></component>
-```
-
-### 父子组件传值
-
-#### 父组件向子组件传值
-
-子组件获取父组件的属性和方法有三种方式
-
-1. 在子组件绑定属性
-2. 在子组件绑定属性并把 `this` 传给子组件
-3. 子组件使用 `this.$parent` 直接获取父组件
-
-示例: 
-
-```vue
-<!--父组件-->
-<template>
-	<!--通过绑定属性来进行传值-->
-	<son :msg="msg"></son>
-	<!--你可以直接把父组件传给子组件, 但不建议这样做-->
-	<son :father="this"></son>
-</template>
-<script>
-    import son from "son";
-    export default {
-        name: "father",
-        data(){
-            return {
-                msg: "hello son"
-            }
-        },
-        components: {
-            son
-        }
-    }
-</script>
-```
-
-```html
-<!--子组件-->
-<template>
-	<div>{{father ? father.msg : msg}}</div>
-</template>
-<script>
-    export default {
-        name: "son",
-        props: ["msg", "father"],
-        methods: {
-            showFathersMsg(){
-                // 子组件可以通过this.$parent来获取父组件和属性和方法, 但不建议这么做
-                console.log(this.$parent.msg);
-            }
-        }
-    }
-</script>
-```
-
-> props中的属性是只读的
-
-#### 子组件向父组件传值
-
-有两种方式从子组件获取值
-
-1. 通过自定义事件来向父组件传值
-2. 父组件通过 `$refs` 直接获取子组件中的属性
-
-示例:
-
-```html
-<!--父组件-->
-<template>
-    <!--通过子组件触发自定义事件-->
-	<son @getMsgFromSon="getMsgFromSon"></son>
-    <!--通过$refs直接获取子组件中的属性-->
-    <son ref="son"></son>
-</template>
-<script>
-    import son from "son";
-    export default {
-        name: "father",
-        methods: {
-            getMsgFromSon(data){
-                console.log(data);
-            },
-            getArgFromSon(){
-                console.log("this.$refs.son.msg");
-            }
-        }
-    }
-</script>
-```
-
-```vue
-<!--子组件-->
-<template>
-	<div @click="sendMsgToFather"></div>
-</template>
-<script>
-    import son from "son";
-    export default {
-        name: "son",
-        data(){
-            return {
-                msg: 'hello father'
-            }
-        },
-        methods: {
-            sendMsgToFather(){
-                this.$emit("getMsgFromSon", this.msg);
-            }
-        }
-    }
-</script>
-```
-
-> emit触发的事件名要小写(驼峰命名会转为小写)
-
-#### emits
-
-我们可以在 `emits` 属性中添加对 `$emit` 主动触发事件的监听
-
-```vue
-<!--子组件-->
-<template>
-	<div @click="sendMsgToFather"></div>
-</template>
-<script>
-    import son from "son";
-    export default {
-        name: "son",
-        data(){
-            return {
-                msg: 'hello father'
-            }
-        },
-        emits: {
-            getMsgFromSon(msg){
-                if(!msg){
-                    console.log('you should put something in msg');
-                }
-            }
-        }
-        methods: {
-            sendMsgToFather(){
-                this.$emit("getMsgFromSon", this.msg);
-            }
-        }
-    }
-</script>
-```
-
-### 事件中心
-
-事件中心实现了非父子组件之间的传值
-
-在vue2中通过 `$on` 来监听广播, 通过 `$emit` 发送广播来实现实事件中心.
-
-在vue3中去掉了 `$on` `$off` `$once` 我们需要通过第三方的[mitt](https://www.npmjs.com/package/mitt)来实现事件中心
-
-### 自定义组件双向数据绑定
-
-```vue
-<!--父组件-->
-<template>
-    <son v-model:value="value"></son>
-</template>
-<script>
-    import son from "son";
-    export default {
-        name: "father",
-        data(){
-            return {
-                value: "hello"
-            }
-        }
-    }
-</script>
-```
-
-```vue
-<!--子组件-->
-<template>
-	<input :value="value" @input="$emit('update:value', $event.target.value)"/>
-</template>
-<script>
-    export default {
-        name: "son",
-        props: ["value"]
-    }
-</script>
-```
-
-### 组件插槽
-
-```vue
-<!--父组件-->
-<template>
-    <my-button>确认</my-button>  <!--这里会将button组件的slot渲染为 确认-->
-	<my-button>取消</my-button>	<!--这里会将button组件的slot渲染为 取消-->
-	<my-button></my-button>  <!--没有值则渲染slot中的默认值-->
-</template>
-<script>
-    import button from "Button";
-    export default {
-        name: "father",
-        data(){
-            return {
-                value: "hello"
-            }
-        },
-        components: {
-            "my-button": "button"
-        }
-    }
-</script>
-```
-
-```html
-<!--button组件-->
-<template>
-	<button>
-        <slot>默认值</slot>
-    </button>
-</template>
-<script>
-    export default {
-        name: "son",
-        props: ["value"]
-    }
-</script>
-```
-
-具名插槽
-
-```vue
-<!--父组件-->
-<template>
-	<alert-box>
-        <div>这里的内容1会被放到"不具"名插槽中</div>
-        <div>这里的内容2会被放到"不具"名插槽中</div>
-        <div slot="namedSlot">这里的内容会被放到"具"名插槽中</div>
-    </alert-box>
-</template>
-<script>
-    import AlertBox from "AlertBox";
-    export default {
-        name: "father",
-        components: {
-            alert-box: AlertBox
-        }
-    }
-</script>
-```
-
-```html
-<!--alert-box组件-->
-<template>
-    <div>
-        <string>ERROR:</strong>
-		<div>下面是不具名插槽</div>
-        <slot></slot>
-		<div>下面是具名插槽</div>
-    	<slot name="namedSlot"></slot>
-    </div>
-</template>
-<script>
-    import button from "Button";
-    export default {
-        name: "father",
-    }
-</script>
-```
-
-### 非prop属性继承
-
-> 1. 通过$attrs可以获取赋给子组件的属性
-> 2. 如果只有一个根节点则属性自动继承到根节点上, 如果有多个根节点则不会自动继承
-
-```vue
-<!--父组件-->
-<template>
-    <my-button class="confirm" test-id="1">确认</my-button> 
-	<!--上面的class和test-id会继承给button组件的根元素, 也就是button元素-->
-	<my-input class="confirm" test-id="3"></my-input>
-	<!--上面的class会继承给div元素, 而test-id会继承给input元素-->
-</template>
-<script>
-    import Button from "Button";
-    import input from "Input";
-    export default {
-        name: "father",
-        data(){
-            return {
-                value: "hello"
-            }
-        },
-        components: {
-            "my-button": Button,
-            "my-input": Input
-        }
-    }
-</script>
-```
-
-```vue
-<!--button组件-->
-<template>
-	<button>
-        <slot>默认值</slot>
-    </button>
-</template>
-<script>
-    export default {
-        name: "button"
-    }
-</script>
-<style>
-    .confirm{
-        color: blue;
-    }
-    .cancel {
-        color: red
-    }
-</style>
-```
-
-```vue
-<!--input组件-->
-<template>
-	<div :class="$attrs['class']"> <!--手动设置继承的位置-->
-        <input :test-id="$attrs['test-id']"/> <!--手动设置继承的位置-->
-    </div>
-</template>
-<script>
-    export default {
-        name: "input",
-        inheritAttrs: false // 禁用默认继承
-    }
-</script>
-<style>
-    .confirm{
-        color: blue;
-    }
-    .cancel {
-        color: red
-    }
-</style>
-```
-
-### teleport
-
-将一个组件放到dom中的任意位置, 而不包含在父组件中.
-
-如下面son组件默认会被放到parent组件中, 但通过使用teleport标签指定放置位置后, son组件将会被放到body下面
-
-> to 属性支持css选择器
-
-```vue
-<!--parent.vue-->
-<template>
-	<son></son>
-</template>
-<script>
-    import son from "Son";
-    export default {
-        name: "parent",
-        components: {
-            son
-        }
-    }
-</script>
-```
-
-```vue
-<!--son.vue-->
-<template>
-	<teleport to="body">
-        <div>hello world</div>
-    </teleport>
-</template>
-```
-
-## Composition API
-
-vue3中加入了Composition API用于提高代码的复用性
-
-> composition-api 提供的函数
->
-> * 生命周期hooks
-> * setup
-> * ref
-> * reactive
-> * watchEffect
-> * watch
-> * computed
-> * toRefs
-
-### 生命周期
-
-setup在beforeCreate 和 created这两个周期执行, 所以在setup中不能申明这两个函数, 而其它的生命周期都可以在setup中申明
-
-### setup
-
-setup在beforeCreate和created阶段执行, 所以访问不到data中的属性和methods中的方法, 但可以获取到props
-
-```vue
-<template>
-	<div>{{msg}}</div>
-</template>
-<script>
-    export default{
-        name: 'com',
-        props: ['msg'],
-        setup(props){
-            let msg = props.msg
-            return {
-                msg
-            }
-        }
-    }
-</script>
-```
-
-### ref&reactive
-
-ref和reactive用来申明响应式数据
-
-* ref 申明的变量只能通过value属性来改变他的值, 即变量对应的整个值都会改变, 所以如果值是一个对象则会把该对象替换掉,而无法修改对象的属性
-* reactive 可用于 object
-
-```vue
-<template>
-	<div>{{msg}}</div>
-	<div @click="changeMsg">changeMsg</div>
-	<div>{{name}}</div>
-	<div @click="changeName">changeName</div>
-	<div>{{book.title}} -- {{book.no}}</div>
-	<div @click="changeBookTitle">changeBookTitle</div>
-	<div @click="changeBookNo">changeBookNo</div>
-</template>
-<script>
-    import {ref, reactive} from 'vue';
-    export default{
-        name: 'com',
-        setup(){
-            // 下面的msg并没有申明为响应式数据, 所以在changeMsg触发后msg值修改了却不会渲染到页面
-            let msg = "hello"; 
-            const changeMsg = ()=>{
-                msg = "hello world"
-            }
-            
-            let name = ref("xiaobai");
-            const changeName = ()=>{
-                name.value = "xiaohei"
-            }
-            
-            let book = reactive({
-                title: '小黄书',
-                no: 999
-            })
-            const changeBookTitle = ()=>{
-                book.title = '小白书'
-            }
-            const changeBookNo = ()=>{
-                book.no = '0'
-            }
-            return {
-                msg,
-                changeMsg,
-                name,
-                changeName,
-                book,
-                changeBookTitle,
-                changeBookNo
-            }
-        }
-    }
-</script>
-```
-
-### toRefs
-
-将reactive类型的对象**的属性**转化为ref类型的对象, 以此让reactive类型对象的属性可以实现响应式
-
-```vue
-<template>
-	<div>{{name}} -- {{age}}</div>
-	<div @click="changeName">changeName</div>
-</template>
-<script>
-    import {reative, toRefs} from 'vue';
-    export default{
-        name: 'com',
-        setup(){
-            const people = reactive({
-                name: 'xiaobai',
-                age: 10
-            })
-            const changeName = ()=>{
-                people.name = "xiaobai bai"
-            }
-            return {
-                people,
-                changeName,
-                ...toRefs(people) // 通过toRefs将people中的属性解出
-            }
-        }
-    }
-</script>
-```
-
-### computed
-
-```vue
-<template>
-  <div id="container">
-    <input v-model="firstName">
-    <input v-model="lastName">
-    <div >{{fullName}}</div>
-  </div>
-</template>
-
-<script>
-import {reactive, computed, toRefs} from 'vue';
-export default{
-    name: 'com',
-    setup(){
-      const people = reactive({
-        firstName: 'san',
-        lastName: 'zhang'
-      })
-      const {firstName, lastName} = toRefs(people);
-      const fullName = computed( () => {
-        return firstName.value + " " + lastName.value
-      })
-      return {
-        firstName,
-        lastName,
-        fullName
-      }
-    }
-}
-</script>
-```
-
-### watch&watchEffect
-
->  注意: watch只能监听 getter/effect 函数, ref/reactive 对象
-
-```vue
-<template>
-  <div id="container">
-    <div >{{vOfWatch}}</div>
-    <div >{{vOfWatchEffect}}</div>
-  </div>
-</template>
-
-<script>
-import {reactive, watch, watchEffect} from 'vue'
-export default {
-  name: 'test',
-  setup(){
-    const vOfWatch = reactive({
-      num: 10
-    })
-    const vOfWatchEffect = reactive({
-      num: 10
-    })
-    // 1. watch 需要指定监听对象
-    // 2. watch 可以得到改变前的值
-    watch(()=>vOfWatch.num, (newData, oldData) => {
-      console.log('watch', newData, oldData);
-    })
-    // watchEffect 无需手动指定监听对象
-    watchEffect( (arg) => {
-      console.log('watchEffect', vOfWatchEffect.num, arg);
-    })
-    let count = 0;
-    const interval = setInterval( () => {
-      if (count == 10) {
-        clearInterval(interval);
-      }
-      vOfWatch.num ++;
-      vOfWatchEffect.num ++;
-      count ++;
-    }, 1000)
-    return {
-      vOfWatch,
-      vOfWatchEffect
-    }
-  }
-}
-</script>
-```
-
-### provide&inject
-
-通过provide和inject可以让子(孙)组件方便的获取父(祖)组件中的值
-
-下面的示例是非响应式
-
-```vue
-<!--parent.vue-->
-<template>
-	<div>{{parantTitle}}</div>
-</template>
-<script>
-    export default{
-        name: 'parent',
-        data(){
-            return{
-                parentTitle: 'parent title'
-            }
-        },
-        provide(){
-            return{
-                parentTitle: this.parentTitle
-            }
-    	}
-    }
-</script>
-```
-
-```vue
-<!--son.vue-->
-<template>
-	<div>{{parantTitle}}</div>
-</template>
-<script>
-    export default{
-        name: 'son',
-        inject: ['parentTitle']
-    }
-</script>
-```
-
-下面的示例是响应式
-
-> 需要注意的是, 如果子组件对通过 `inject` 获取的属性进行修改, 会影响父组件. 这是与 `props` 不同的
-
-```vue
-<!--parent.vue-->
-<template>
-	<div>这是父组件---{{parantTitle}}</div>
-	下面是子组件
-	<son></son>
-</template>
-<script>
-    import {ref, provide} from 'vue';
-    import Son from 'Son.vue';
-    export default{
-        name: 'parent',
-        setup(){
-            const parentTitle = ref('parent title');
-            provide('parentTitle', parentTitle);
-            return {
-                parentTitle
-            }
-        },
-        components: {
-            son: Son
-        }
-    }
-</script>
-```
-
-```vue
-<!--Son.vue-->
-<template>
-	<div>{{parantTitle}}</div>
-</template>
-<script>
-    import {inject} from 'vue';
-    export default{
-        name: 'son',
-        setup(){
-            let parentTitle = inject("parentTitle");
-            return {
-                parentTitle
-            }
-        }
-    }
-</script>
-```
-
-## 其他
-
-### mixins
-
-mixins可以抽离组件的方法和属性, 以便多个组件进行共用
-
-> mixin采用就近原则, 即组件自身的属性和方法优先于mixin的属性和方法
-
-下面是一个mixin示例
-
-```js
-// myMixin.js
-export default {
-	data: ()=>{
-		return {
-			msg: "hello"
-		}
-	},
-	methods: {
-		sayHi(){
-			console.log("hi");
-		}
-	}
-}
-```
-
-下面是在单个组件中引入myMixin
-
-```vue
-<template>
-	<!--引入并注册myMixin后可以直接使用myMixin中的属性和方法-->
-	<div>{{msg}}</div> 
-	<div @click="sayHi">say hi</div> 
-</template>
-<script>
-    import myMixin from "./myMixin.js"
-    export default {
-        name: "myCom",
-        mixins: [myMixin] //通过mixins属性进行注册
-    }
-</script>
-```
-
-下面是在全局引入myMixin, 全局引入后任何组件都可以直接使用myMixin中的属性和方法
-
-```js
-// main.js
-import {createApp} from "vue";
-import App from "./App.vue";
-import myMixin from "./myMixin.js";
-
-createApp(App).mixin(myMixin).mount("#app");
-```
+## 其它
 
 ### ref获取DOM元素或组件
 
@@ -1515,55 +1053,27 @@ createApp(App).mixin(myMixin).mount("#app");
 </script>
 ```
 
-### Vue.set/vm.$set
+### render function
 
-说明: 用于设置手动设置数组/对象的值并渲染到页面
+```js
+const { createApp, h } = Vue
 
-Vue.set(data中的变量, 索引/属性, 值)
+const app = createApp({})
 
-vm.$set(data中的变量, 索引/属性, 值)
-
-### 深刻理解MVC和MVVM
-
-<img src="image-20200129221142323.png" alt="image-20200129221142323" style="zoom: 50%;" />
-
-## Question
-
-### composition-api
-
-composition-api为了提高代码的复用性而出现在vue3中, 那它和mixin有什么区别, 有什么它能做或比mixin做得更好的?
-
-### 为什么说ref不能申明响应式对象?
-
-下面的代码可以正常运行
-
-```vue
-<template>
-  <div id="container">
-    <div >{{people.name}} -- {{people.age}}</div>
-    <div class="button" @click="changeName">changeName</div>
-    <input type="text" v-model="people.age">
-  </div>
-</template>
-
-<script>
-import {ref} from "vue"
-export default {
-  name: 'ExploreContainer',
-  setup(){
-    const people = ref({
-      name: 'xiaobai',
-      age: '10'
-    })
-    const changeName = ()=>{
-      people.value.name = '小黑'
-    }
-    return {
-      people,
-      changeName
+app.component('anchored-heading', {
+  render() {
+    return h(
+      'h' + this.level, // tag name
+      {}, // props/attributes
+      this.$slots.default() // array of children
+    )
+  },
+  props: {
+    level: {
+      type: Number,
+      required: true
     }
   }
-}
-</script>
+})
 ```
 
