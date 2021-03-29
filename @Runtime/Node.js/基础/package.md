@@ -110,3 +110,11 @@ npm config get registry
 ```shell
 npm config set registry https://registry.npm.taobao.org 
 ```
+
+> 官方: https://registry.npmjs.org/
+
+## npm
+
+设置不要软链接
+
+npm config set bin-links false
