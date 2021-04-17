@@ -185,66 +185,6 @@ module.exports = {
 >
 > * 固定参数名=[hash编码:8位]-[图片名].[后缀名]
 
-## 压缩
-
-## 其他工具
-
-### html-webpack-plugin
-
-说明: 
-
-- 在内存中生成一个页面
-- 自动处理bundle.js的引用问题, 不需要在模板页面中引入bundle.js
-
-安装:
-
-```sh
-npm install -D html-webpack-plugin
-```
-
-使用:
-
-```js
-// 在webpack.config.js中
-const htmlWebpackPlugin = require("html-webpack-plugin");
-// 在plugins属性中添加
-plugins: [
-  new htmlWebpackPlugin({
-    template: 指定的模板页面路径,
-    filename: 指定内存中生成页面的名称
-  })
-]
-```
-
-### webpack-dev-server
-
-说明: 
-
-1. webpack-dev-server是一个webpack自动打包工具
-2. 其打包生成的`bundle.js`被挂载在本地**服务**的`/`路径上, 并不在本地**磁盘**的`/dist/`中. 需要通过访问本地服务来获取.
-3. `budle.js`文件看不到, 但可以直接通过`<script src="/bundle.js">`来引入
-4. 如果要使用webpack-dev-server即使全局安装了webpack也需要本地安装webpack
-
-安装:
-
-```sh
-npm install -D webpack-dev-server
-```
-
-使用:
-
-```sh
-webpack-dev-server [选项]
-#	选项
-# --open 启动时打开项目页面
-# --port 指定端口(默认8080)
-# --contentBase 指定默认打开路径例如 ./bundle/index.html 或 ./bundle
-# --hot 增量打包, 热刷新
-# --host 指定主机IP(默认localhost), 可以使用这个来进行手机端测试
-# 示例
-npx webpack-dev-server --open --port 3000 --contentBase src --hot
-```
-
 ## development mode
 
 ### HMR
@@ -442,17 +382,27 @@ just need set `mode = 'production'` in `webpack.config.js`
    }
    ```
 
-
-
 ## loader
 
-outputPath可以指定输出文件所在的目录
+### 基本语法
+
+```js
+module.exports = {
+    module: {
+        rules: [
+            test: '/\.ts$/', //匹配规则, 根据规则决定用使用哪些loader
+            use: 'ts-loader', //use指定使用哪些loader, 可以是字符串, 数组, 对象数组. 数组的执行顺序是从后往前.
+            exclude: '/node_modules/' //排除文件
+        ]
+    }
+}
+```
 
 ### css
 
 **安装**:
 
-```
+```sh
 npm install -D style-loader css-loader
 ```
 
@@ -478,8 +428,11 @@ module {
 
 **安装**:
 
-```
-npm install -D less-loader less style-loader css-loader
+```bash
+# less所需的包
+npm install -D less less-loader style-loader css-loader
+# css兼容
+npm install -D postcss postcss-loader postcss-preset-env
 ```
 
 **使用**
@@ -487,7 +440,24 @@ npm install -D less-loader less style-loader css-loader
 ```js
 module: {
   rules: [
-    {test: /\.less$/, use: ['style-loader', 'css-loader', 'less-loader']}
+    {test: /\.less$/, use: ['style-loader', 
+		'css-loader', 
+		{
+            loader: "postcss-loader",
+            options: {
+                postcssOptions: {
+                    plugins: [
+                        [
+                            "postcss-preset-env",
+                            {
+                                browser: 'last 2 versions'
+                            }
+                        ]
+                    ]
+                }
+            }
+        },
+		'less-loader']}
   ]
 }
 ```
@@ -597,8 +567,6 @@ module: {
 }
 ```
 
-
-
 ### babel
 
 说明: 用于解决ES6和ES7的不兼容
@@ -607,25 +575,39 @@ module: {
 
 ```sh
 # babel 核心
-npm install -D babel-core babel-loader
-# 转换插件
-npm install -D babel-plugin-transform-runtime
-# 转换规则
-npm install -D babel-preset-env babel-preset-stage-0
+npm install -D @babel/core babel-loader
+# 环境预设
+npm install -D @babel/preset-env
+# 运行环境
+npm install -D core-js
 ```
 
 使用
 
 ```json
-// babel配置文件 `项目/.babelrc`
-{
-  "presets": ["env", "stage-0"],
-  "plugins": ["transform-runtime"]
-}
 // webpack 配置
 module: {
   rules: [{
-    test: /\.js$/, use: 'babel-loader', exclude: '/node_modules/'
+    test: /\.js$/, 
+    use: {
+        loader: "babel-loader",
+        options: {
+            presets: [
+                "@babel/preset-env",
+                {
+                    // 要兼容的浏览器
+                    targets: {
+                        chrome: 88
+                    },
+                    // 指定corejs版本
+                    corejs: 3,
+                    // 指定corejs的使用方式
+                    useBuiltIns: "usage" //useage 表示按需加载
+                }
+            ]
+        }
+    }, 
+    exclude: '/node_modules/'
   }]
 }
 ```
@@ -654,12 +636,64 @@ npm install -D vue-loader vue-template-compiler
 ```js
 module: {
   rules: [{
-    test: /\.vue$/, use: 'vue-loader'
+    test: /\.vue$/,
+    use: 'vue-loader'
   }]
 }
 ```
 
+### typescript
+
+说明: 编译ts
+
+安装
+
+```bash
+npm install -D typescript ts-loader
+```
+
+使用
+
+```js
+module.exports = {
+    module: {
+        rules: [{
+            test: /\.ts$/,
+            use: "ts-loader",
+            exclude: '/node_modules/'
+        }]
+    }
+}
+```
+
 ## plugins
+
+### html-webpack-plugin
+
+说明: 
+
+- 在内存中生成一个页面
+- 自动处理bundle.js的引用问题, 不需要在模板页面中引入bundle.js
+
+安装:
+
+```sh
+npm install -D html-webpack-plugin
+```
+
+使用:
+
+```js
+// 在webpack.config.js中
+const htmlWebpackPlugin = require("html-webpack-plugin");
+// 在plugins属性中添加
+plugins: [
+  new htmlWebpackPlugin({
+    template: 指定的模板页面路径,
+    filename: 指定内存中生成页面的名称
+  })
+]
+```
 
 ### html
 
@@ -701,22 +735,90 @@ npm install -D mini-css-wxtract-plugin
 
 ```js
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-module: {
-    rules: [
-        {
-            test: '/\.css$/',
-            use: [
-                MiniCssExtractPlugin.loader,
-                'css-loader'
-            ]
-        }
+
+module.exports = {
+	module: {
+    	rules: [
+        	{
+            	test: '/\.css$/',
+            	use: [
+                	MiniCssExtractPlugin.loader,
+                	'css-loader'
+            	]
+        	}
+    	]
+	},
+	plugins: [
+		new MiniCssExtractPlugin({
+        	// 指定输出路径, 默认为output path下的main.css
+        	filename: 'build/built.css'
+    	});
+	]
+}
+```
+
+### clean-webpack-plugin
+
+说明: 先清空dist再把编译好的文件放进去
+
+安装
+
+```bash
+npm install -D clean-webpack-plugin
+```
+
+使用
+
+```js
+const {CleanWebpackPlugin} = require('clean-webpack-plugin');
+
+module.exports = {
+    plugins: [
+        new CleanWebpackPlugin()
     ]
 }
-plugins: [
-	new MiniCssExtractPlugin({
-        // 指定输出路径, 默认为output path下的main.css
-        filename: 'build/built.css'
-    });
-]
+```
+
+## tool
+
+### webpack-dev-server
+
+说明: 
+
+1. webpack-dev-server是一个webpack自动打包工具
+2. 其打包生成的`bundle.js`被挂载在本地**服务**的`/`路径上, 并不在本地**磁盘**的`/dist/`中. 需要通过访问本地服务来获取.
+3. `budle.js`文件看不到, 但可以直接通过`<script src="/bundle.js">`来引入
+4. 如果要使用webpack-dev-server即使全局安装了webpack也需要本地安装webpack
+
+安装:
+
+```sh
+npm install -D webpack-dev-server
+```
+
+使用:
+
+命令行
+
+```sh
+webpack-dev-server [选项]
+#	选项
+# --open 启动时打开项目页面
+# --port 指定端口(默认8080)
+# --contentBase 指定默认打开路径例如 ./bundle/index.html 或 ./bundle
+# --hot 增量打包, 热刷新
+# --host 指定主机IP(默认localhost), 可以使用这个来进行手机端测试
+# 示例
+npx webpack-dev-server --open --port 3000 --contentBase src --hot
+```
+
+npm script
+
+```json
+{
+    "scripts": {
+        "run": "webpack serve [选项]"
+    }
+}
 ```
 

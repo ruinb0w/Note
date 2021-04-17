@@ -151,14 +151,14 @@ function requestA(){
     .then( (res) => {
       console.log('singal handle', res.data);
       return res.data;
-    })
+  })
   console.log('index', index);
   let group = axios
     .get("https://zxapi.lcwmkj.cn/cppcc/group_detail?gid=1&token=M19seHpoenh0b2tlbl8yNQ==")
     .then( (res) => {
       console.log('singal handle', res.data);
       return res.data;
-    })
+  })
   Promise.all([index, group]).then( (res) => {
     console.log('handle all', res);
   })
